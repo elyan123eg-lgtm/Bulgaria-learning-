@@ -68,6 +68,10 @@ export const ProfileTelegramTab: React.FC<ProfileTelegramTabProps> = ({
         }),
       });
 
+      if (!res.ok) {
+        throw new Error('Failed to save profile');
+      }
+
       const data = await res.json();
       if (data.success && data.profile) {
         setUserProfile(data.profile);
@@ -101,6 +105,10 @@ export const ProfileTelegramTab: React.FC<ProfileTelegramTabProps> = ({
           username: usernameInput.trim() || 'Learner',
         }),
       });
+
+      if (!res.ok) {
+        throw new Error('Test message failed');
+      }
 
       const data = await res.json();
       if (data.success) {
@@ -144,6 +152,10 @@ export const ProfileTelegramTab: React.FC<ProfileTelegramTabProps> = ({
         }),
       });
 
+      if (!res.ok) {
+        throw new Error('Lesson dispatch failed');
+      }
+
       const data = await res.json();
       if (data.success) {
         setTopicResult({
@@ -152,9 +164,11 @@ export const ProfileTelegramTab: React.FC<ProfileTelegramTabProps> = ({
         });
         // Refresh profile to show new history
         const profRes = await fetch(`/api/profile/${usernameInput.trim()}`);
-        const profData = await profRes.json();
-        if (profData.success && profData.profile) {
-          setUserProfile(profData.profile);
+        if (profRes.ok) {
+            const profData = await profRes.json();
+            if (profData.success && profData.profile) {
+              setUserProfile(profData.profile);
+            }
         }
       } else {
         setTopicResult({

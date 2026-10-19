@@ -116,6 +116,11 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
         }),
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to generate response');
+      }
+
       const data = await res.json();
       if (data.message) {
         const assistantMessage: ChatMessage = {
@@ -126,7 +131,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
-        throw new Error(data.error || 'No message received');
+        throw new Error('No message received');
       }
     } catch (err: any) {
       console.error('Chat error:', err);
@@ -232,6 +237,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
           }),
         });
 
+        if (!checkRes.ok) {
+          throw new Error('Pronunciation check failed');
+        }
+
         const checkData = await checkRes.json();
         const analysis = checkData.analysis || checkData.fallback;
 
@@ -265,6 +274,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
             useSearch,
           }),
         });
+
+        if (!chatRes.ok) {
+          throw new Error('Chat response failed');
+        }
 
         const chatData = await chatRes.json();
         const assistantMessage: ChatMessage = {
@@ -303,6 +316,10 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
         body: JSON.stringify({ text }),
       });
 
+      if (!res.ok) {
+        throw new Error('TTS failed');
+      }
+
       const data = await res.json();
       if (data.success && data.audioDataUrl) {
         const audio = new Audio(data.audioDataUrl);
@@ -339,6 +356,11 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: text.slice(0, 120) }),
       });
+      
+      if (!res.ok) {
+        throw new Error('Image generation failed');
+      }
+      
       const data = await res.json();
       if (data.success && data.imageUrl) {
         setMessages((prev) =>
