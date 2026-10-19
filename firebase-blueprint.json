@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Learner profile",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "proficiencyLevel": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "telegramChatId": { "type": "string" },
+        "preferences": { "type": "object" }
+      },
+      "required": ["userId", "proficiencyLevel"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["role", "content", "timestamp"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Chat session",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "topic": { "type": "string" },
+        "messages": { 
+            "type": "array", 
+            "items": { "$ref": "#/entities/Message" } 
+        }
+      },
+      "required": ["userId", "messages"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat sessions"
+    }
+  }
+}
