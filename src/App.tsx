@@ -4,12 +4,13 @@ import { ChatTab } from './components/ChatTab';
 import { BookCurriculumTab } from './components/BookCurriculumTab';
 import { PronunciationLab } from './components/PronunciationLab';
 import { ProfileTelegramTab } from './components/ProfileTelegramTab';
-import { ProficiencyLevel, UserProfile, TelegramBotInfo } from './types';
+import { DictionaryTab } from './components/DictionaryTab';
+import { ProficiencyLevel, UserProfile, TelegramBotInfo, ActiveTab } from './types';
 import { db } from './firebase';
 import { doc, getDocFromServer } from 'firebase/firestore';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'book' | 'pronunciation' | 'profile'>('chat');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('chat');
   const [drillPhraseOverride, setDrillPhraseOverride] = useState<string | null>(null);
   const [chatPromptOverride, setChatPromptOverride] = useState<string | null>(null);
   
@@ -141,6 +142,9 @@ export default function App() {
             botInfo={botInfo}
             onRefreshBotInfo={fetchBotInfo}
           />
+        )}
+        {activeTab === 'dictionary' && (
+          <DictionaryTab />
         )}
       </main>
 

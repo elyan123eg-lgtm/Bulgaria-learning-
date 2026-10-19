@@ -227,6 +227,16 @@ async function checkAndDispatchScheduledLessons() {
 // Check every 2 minutes
 setInterval(checkAndDispatchScheduledLessons, 2 * 60 * 1000);
 
+// Dictionary Search
+app.get('/api/dictionary/search', (req, res) => {
+  const query = (req.query.q as string || '').toLowerCase();
+  const dictionary = JSON.parse(fs.readFileSync(path.join(__dirname, 'src/data/dictionary.json'), 'utf-8'));
+  const results = dictionary.filter((item: any) => 
+    item.bg.toLowerCase().includes(query) || item.en.toLowerCase().includes(query)
+  );
+  res.json({ results });
+});
+
 // ======================== API ROUTES ========================
 
 // 1. Get Telegram Bot Info & Status

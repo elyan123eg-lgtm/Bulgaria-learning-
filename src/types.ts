@@ -1,4 +1,5 @@
 export type ProficiencyLevel = 'Beginner' | 'Intermediate' | 'Advanced';
+export type ActiveTab = 'chat' | 'book' | 'pronunciation' | 'profile' | 'dictionary';
 
 export interface UserProfile {
   id: string;

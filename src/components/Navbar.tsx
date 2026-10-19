@@ -1,10 +1,10 @@
 import React from 'react';
 import { MessageSquare, BookOpen, Mic, User, Send } from 'lucide-react';
-import { ProficiencyLevel, TelegramBotInfo } from '../types';
+import { ProficiencyLevel, TelegramBotInfo, ActiveTab } from '../types';
 
 interface NavbarProps {
-  activeTab: 'chat' | 'book' | 'pronunciation' | 'profile';
-  setActiveTab: (tab: 'chat' | 'book' | 'pronunciation' | 'profile') => void;
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
   level: ProficiencyLevel;
   setLevel: (level: ProficiencyLevel) => void;
   username: string;
@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>2000 Core Words</span>
             </button>
 
-            <button
+             <button
               onClick={() => setActiveTab('pronunciation')}
               className={`flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
                 activeTab === 'pronunciation'
@@ -77,6 +77,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Mic className="w-4 h-4 shrink-0 text-rose-500" />
               <span>Pronunciation Lab</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('dictionary')}
+              className={`flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
+                activeTab === 'dictionary'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 shrink-0 text-sky-600" />
+              <span>Dictionary</span>
             </button>
 
             <button
