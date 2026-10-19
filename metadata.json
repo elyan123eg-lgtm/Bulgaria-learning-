@@ -1,6 +1,6 @@
 {
   "name": "BulgarianLanguageTeachingAgent",
-  "description": "Interactive Bulgarian language teaching agent with optional Telegram notifications.",
-  "requestFramePermissions": [],
+  "description": "Interactive Bulgarian language teaching agent with speech pronunciation feedback, vision analysis, and automated 3-hour Telegram lesson delivery.",
+  "requestFramePermissions": ["CAMERA", "MICROPHONE"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

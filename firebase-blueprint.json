@@ -2,50 +2,80 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "Learner profile",
+      "description": "Learner profile for Bulgarian language teaching",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "proficiencyLevel": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"] },
+        "username": { "type": "string" },
+        "proficiencyLevel": { 
+          "type": "string", 
+          "enum": ["Beginner", "Intermediate", "Advanced"] 
+        },
         "telegramChatId": { "type": "string" },
-        "preferences": { "type": "object" }
+        "autoLessonsEnabled": { "type": "boolean" },
+        "lastTelegramSentAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["userId", "proficiencyLevel"]
+      "required": ["userId", "username", "proficiencyLevel"]
     },
     "Message": {
       "title": "Message",
-      "description": "Chat message",
+      "description": "Chat message with support for multimodal audio, images, and pronunciation feedback",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "role": { "type": "string", "enum": ["user", "assistant"] },
         "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "pronunciationScore": { "type": "number" },
+        "pronunciationFeedback": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["role", "content", "timestamp"]
     },
     "Chat": {
       "title": "Chat",
-      "description": "Chat session",
+      "description": "Chat session with the Bulgarian AI tutor",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
         "topic": { "type": "string" },
         "messages": { 
-            "type": "array", 
-            "items": { "$ref": "#/entities/Message" } 
-        }
+          "type": "array", 
+          "items": { "$ref": "#/entities/Message" } 
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "messages"]
+    },
+    "TelegramLog": {
+      "title": "TelegramLog",
+      "description": "Record of 3-hour automated lesson topics dispatched via Telegram bot",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "chatId": { "type": "string" },
+        "topic": { "type": "string" },
+        "summary": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" }
+      },
+      "required": ["userId", "chatId", "topic", "sentAt", "status"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles"
+      "description": "User profiles and learning preferences"
     },
     "/users/{userId}/chats/{chatId}": {
       "schema": "Chat",
-      "description": "Chat sessions"
+      "description": "Interactive chat conversations and lessons"
+    },
+    "/users/{userId}/telegramLogs/{logId}": {
+      "schema": "TelegramLog",
+      "description": "Scheduled 3-hour Telegram lesson delivery history"
     }
   }
 }
