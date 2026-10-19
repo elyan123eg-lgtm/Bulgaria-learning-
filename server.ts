@@ -331,6 +331,7 @@ app.post('/api/telegram/send-topic', async (req, res) => {
 
 // 4. Save or update learner profile
 app.post('/api/profile/save', (req, res) => {
+  console.log('[API] Profile save request received:', req.body.username);
   const { username, password, level, telegramChatId, autoLessonsEnabled } = req.body;
   if (!username) {
     return res.status(400).json({ error: 'Username is required' });
@@ -353,6 +354,7 @@ app.post('/api/profile/save', (req, res) => {
   };
 
   saveLearners();
+  console.log('[API] Profile saved successfully');
   res.json({ success: true, profile: learnersMap[username] });
 });
 
@@ -397,6 +399,7 @@ app.get('/api/profile/:username', (req, res) => {
 // 7. Interactive Multimodal Chat (Text + Image Analysis + Google Search Grounding)
 app.post('/api/chat', async (req, res) => {
   const { messages, topic, level, imageBase64, imageMimeType, useSearch } = req.body;
+  console.log('[API] Chat request received');
 
   try {
     const systemInstruction = `You are "Даскал" (Daskal), an exceptionally warm, encouraging, and expert Bulgarian language tutor.
@@ -471,11 +474,13 @@ Your teaching principles:
       config.tools = [{ googleSearch: {} }];
     }
 
+    console.log('[API] Calling Gemini API');
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents,
       config,
     });
+    console.log('[API] Gemini API response received');
 
     res.json({
       message: response.text || 'Здравейте! Готов съм да учим български.',
