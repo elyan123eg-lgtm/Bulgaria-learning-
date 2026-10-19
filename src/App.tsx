@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { ChatTab } from './components/ChatTab';
+import { BookCurriculumTab } from './components/BookCurriculumTab';
 import { PronunciationLab } from './components/PronunciationLab';
 import { ProfileTelegramTab } from './components/ProfileTelegramTab';
 import { ProficiencyLevel, UserProfile, TelegramBotInfo } from './types';
@@ -8,7 +9,9 @@ import { db } from './firebase';
 import { doc, getDocFromServer } from 'firebase/firestore';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'pronunciation' | 'profile'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'book' | 'pronunciation' | 'profile'>('chat');
+  const [drillPhraseOverride, setDrillPhraseOverride] = useState<string | null>(null);
+  const [chatPromptOverride, setChatPromptOverride] = useState<string | null>(null);
   
   // Persistent user profile
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
@@ -70,7 +73,6 @@ export default function App() {
   const handleSetLevel = (newLevel: ProficiencyLevel) => {
     setUserProfile((prev) => {
       const updated = { ...prev, level: newLevel };
-      // Also update on server
       fetch('/api/profile/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,6 +85,18 @@ export default function App() {
       }).catch(console.error);
       return updated;
     });
+  };
+
+  // Bridge from Book curriculum to Pronunciation Lab
+  const handleSelectForPractice = (phrase: string) => {
+    setDrillPhraseOverride(phrase);
+    setActiveTab('pronunciation');
+  };
+
+  // Bridge from Book curriculum to Chat with Daskal
+  const handleSelectForChat = (phrasePrompt: string) => {
+    setChatPromptOverride(phrasePrompt);
+    setActiveTab('chat');
   };
 
   return (
@@ -101,7 +115,19 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1">
         {activeTab === 'chat' && (
-          <ChatTab level={userProfile.level} username={userProfile.username} />
+          <ChatTab 
+            level={userProfile.level} 
+            username={userProfile.username} 
+          />
+        )}
+
+        {activeTab === 'book' && (
+          <BookCurriculumTab
+            level={userProfile.level}
+            telegramChatId={userProfile.telegramChatId}
+            onSelectForPractice={handleSelectForPractice}
+            onSelectForChat={handleSelectForChat}
+          />
         )}
 
         {activeTab === 'pronunciation' && (
@@ -120,10 +146,12 @@ export default function App() {
 
       {/* Subtle Footer */}
       <footer className="border-t border-slate-200 bg-white py-4 px-4 text-center text-xs text-slate-500">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>🇧🇬 <b>Учи Български</b> · AI преподавател и Telegram бот на всеки 3 часа</span>
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>
+            🇧🇬 <b>Learn Bulgarian</b> · Based on <i>2000 Core Words & Phrases Bulgarian</i> · Telegram Bot: <a href="https://t.me/BulgarianLanguagelearning_Bot" target="_blank" rel="noreferrer" className="text-sky-600 font-semibold underline">@BulgarianLanguagelearning_Bot</a>
+          </span>
           <span className="text-[11px] text-slate-400">
-            Ниво: <span className="font-semibold text-slate-600">{userProfile.level}</span> · Токен на бота: <span className="font-mono text-slate-600">865635...7eG7w</span>
+            Level: <span className="font-semibold text-slate-600">{userProfile.level}</span> · Scheduled every 3 hours
           </span>
         </div>
       </footer>

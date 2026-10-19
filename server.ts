@@ -127,40 +127,44 @@ async function sendTelegramMessage(chatId: string, text: string, parseMode: 'HTM
   }
 }
 
-// Generate tailored Bulgarian topic lesson using Gemini
+// Generate tailored Bulgarian topic lesson using Gemini, grounded in the 2000 Core Words book
 async function generateBulgarianTopicLesson(level: string, customTopic?: string): Promise<{ title: string; htmlMessage: string; summary: string }> {
   try {
-    const prompt = `You are "Даскал" (Daskal), an expert and lively Bulgarian language teacher.
-Create a structured mini-lesson for a learner at the ${level || 'Beginner'} level.
-Topic context: ${customTopic || 'A fascinating, practical Bulgarian topic (e.g. coffee culture, Sofia landmarks, daily greetings, food/banitsa, transport, nature/Rila, idioms, Cyrillic secrets)'}.
+    const prompt = `You are "Даскал" (Daskal), an expert Bulgarian language tutor.
+Your curriculum is strictly referenced from the textbook: "2000 Core Words and Phrases - Bulgarian" (BulgarianPod101.com).
+Create a structured, bite-sized mini-lesson for an English-speaking learner at the ${level || 'Beginner'} level.
+Topic context: ${customTopic || 'A core chapter from the 2000 Core Words book (e.g. Chapter 1 Greetings & Basics, Chapter 2 Colors & Daily Objects, Chapter 4 Dining & Food, Chapter 6 Essential Questions, or Chapter 10 National Cuisine & Conversational Phrases)'}.
 
-Format your response in friendly Telegram HTML formatting (use <b>, <i>, <code>).
-Include:
-1. 🇧🇬 A catchy Bulgarian Header & Topic Title with English meaning
-2. 💡 3-4 Key Vocabulary words (Cyrillic + English translation + Phonetic bracket e.g. [zdráv-ey-te])
-3. 🗣️ A short 2-3 line practical Bulgarian dialogue or sentence example
-4. 📚 One cultural or grammar tip specific to Bulgarian (e.g. the vowel 'ъ', how Bulgarians nod/shake heads, definite article suffix)
-5. 🎯 A quick fun practice question for the learner!
-
-Keep the length concise for easy mobile reading on Telegram.`;
+Requirements:
+- Teach 2-3 specific Bulgarian vocabulary words and their authentic sample sentences directly inspired by the 2000 Core Words book.
+- All explanations and translations MUST be in ENGLISH.
+- Format with Telegram HTML (use <b>, <i>, <code>).
+Structure:
+1. 🇧🇬 <b>[Chapter / Topic Title in English & Bulgarian]</b>
+2. 💡 <b>Core Vocabulary (from 2000 Core Words)</b>:
+   • <b>Bulgarian</b> [phonetic-transliteration] - English translation
+   • <i>Sample sentence</i>: "Bulgarian sentence" - "English meaning"
+3. 💬 <b>Practical Dialogue</b>: A short 2-3 line conversation demonstrating the words.
+4. 📚 <b>Grammar / Cultural Insight</b>: Clear tip in English (e.g. Cyrillic spelling, noun gender, Bulgarian nod/shake gesture, traditional food like Shopska salad or Banitsa).
+5. 🎯 <b>Quick Practice Quiz</b>: A quick question for the learner to test their knowledge!`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
     });
 
-    const fullText = response.text || 'Урок по български език!';
+    const fullText = response.text || 'Bulgarian Mini-Lesson';
     
     // Extract title from first line or generate one
     const lines = fullText.split('\n').filter(l => l.trim().length > 0);
-    const title = lines[0] ? lines[0].replace(/<[^>]*>?/gm, '').slice(0, 80) : `Bulgarian Mini-Lesson (${level})`;
+    const title = lines[0] ? lines[0].replace(/<[^>]*>?/gm, '').slice(0, 80) : `2000 Core Words Lesson (${level})`;
     
     // Add banner and footer
-    const htmlMessage = `🇧🇬 <b>Учи Български · 3-Hour Smart Lesson</b>\n` +
-      `<i>Level: ${level}</i>\n\n` +
+    const htmlMessage = `🇧🇬 <b>Learn Bulgarian · 2000 Core Words Lesson</b>\n` +
+      `<i>Reference: BulgarianPod101 2000 Core Phrases · Level: ${level}</i>\n\n` +
       `${fullText}\n\n` +
       `───────────────\n` +
-      `✨ <i>Keep practicing on your web app! Next topic in 3 hours.</i>`;
+      `✨ <i>Delivered automatically every 3 hours. Practice pronunciation on your web app!</i>`;
 
     return {
       title,
@@ -236,6 +240,38 @@ app.get('/api/telegram/bot-info', async (req, res) => {
   });
 });
 
+// Auto-detect Telegram Chat ID from recent messages/start command sent to the bot
+app.get('/api/telegram/detect-chat-id', async (req, res) => {
+  try {
+    const response = await fetch(`${TELEGRAM_API_BASE}/getUpdates?limit=20`);
+    const data = await response.json();
+    if (data.ok && Array.isArray(data.result) && data.result.length > 0) {
+      // Find the most recent message with a valid chat object
+      for (let i = data.result.length - 1; i >= 0; i--) {
+        const item = data.result[i];
+        const chat = item.message?.chat || item.channel_post?.chat || item.my_chat_member?.chat;
+        if (chat && chat.id) {
+          const fromUser = item.message?.from;
+          return res.json({
+            found: true,
+            chatId: String(chat.id),
+            firstName: fromUser?.first_name || chat.first_name || '',
+            username: fromUser?.username || chat.username || '',
+            text: item.message?.text || '',
+            date: item.message?.date ? item.message.date * 1000 : Date.now(),
+          });
+        }
+      }
+    }
+    res.json({
+      found: false,
+      message: 'No incoming messages detected yet. Please open @BulgarianLanguagelearning_Bot in Telegram, press Start or send any message, then click Detect again!',
+    });
+  } catch (err: any) {
+    res.status(500).json({ found: false, error: err.message });
+  }
+});
+
 // 2. Test send a message to a specific Telegram Chat ID
 app.post('/api/telegram/test', async (req, res) => {
   const { chatId, username } = req.body;
@@ -243,11 +279,11 @@ app.post('/api/telegram/test', async (req, res) => {
     return res.status(400).json({ error: 'Chat ID is required' });
   }
 
-  const welcomeText = `🎉 <b>Успешно свързване с Вашия учител по български!</b>\n\n` +
-    `Здравей, <b>${username || 'Ученико'}</b>! Твоят Telegram чат е свързан успешно с уеб приложението <i>Учи Български</i>.\n\n` +
-    `⏰ <b>Какво следва?</b>\n` +
-    `На всеки 3 часа нашият AI бот ще ти изпраща нова интересна тема, речник и полезни изрази според твоето ниво.\n\n` +
-    `🇧🇬 <i>Успех в изучаването на красивия български език!</i>`;
+  const welcomeText = `🎉 <b>Welcome to your Bulgarian Language Tutor!</b>\n\n` +
+    `Hello, <b>${username || 'Learner'}</b>! Your Telegram chat is now connected to <i>Learn Bulgarian</i>.\n\n` +
+    `⏰ <b>What happens next?</b>\n` +
+    `Every 3 hours, our AI bot will automatically send you a new bite-sized Bulgarian topic, vocabulary with phonetics, and dialogue tailored to your level.\n\n` +
+    `🇧🇬 <i>Здравей и успех в ученето! (Hello and good luck learning!)</i>`;
 
   const result = await sendTelegramMessage(String(chatId), welcomeText, 'HTML');
   if (result.ok) {
@@ -363,26 +399,35 @@ app.post('/api/chat', async (req, res) => {
   const { messages, topic, level, imageBase64, imageMimeType, useSearch } = req.body;
 
   try {
-    const systemInstruction = `You are "Даскал" (Daskal), an exceptionally warm, pedagogical, and motivating Bulgarian language tutor.
+    const systemInstruction = `You are "Даскал" (Daskal), an exceptionally warm, encouraging, and expert Bulgarian language tutor.
+Your core syllabus and vocabulary reference is the book: "2000 Core Words and Phrases - Bulgarian" (BulgarianPod101.com).
+The user is learning Bulgarian, and the primary instructional and explanation language is ENGLISH.
 The user is at the ${level || 'Beginner'} proficiency level.
 Current topic or focus: "${topic || 'General Bulgarian Conversation'}".
 
 Your teaching principles:
-1. Always provide authentic Bulgarian in Cyrillic alphabet.
-2. For beginners and intermediates, provide phonetic transliteration in brackets, e.g. [zdráv-ey-te] and English translations for new terms.
-3. If the user provides a photo or asks about an image, identify objects, teach vocabulary words in Bulgarian with gender/articles (e.g. "ябълка (f) - apple"), explain what you see, and ask a conversational question.
-4. Correct errors gently with positive reinforcement, explaining why (e.g., gender agreements, verb endings, definite article placement).
-5. Ground your answers in authentic Bulgarian culture (customs like Martenitsa, Bulgarian holidays, traditional foods like banitsa, kyufte, tarator, landmarks like Sofia, Plovdiv, Rila Monastery, Black Sea).
-6. Keep explanations clear, engaging, and encourage active practice with a short follow-up question.`;
+1. Ground your lessons and vocabulary in the "2000 Core Words and Phrases - Bulgarian" textbook. When introducing new concepts, cite authentic examples and sample sentences from the 2000 Core Words curriculum (e.g., Greetings, Food, Time, Travel, Daily Life, Traditional Bulgarian Cuisine).
+2. Always explain concepts, grammar rules, and vocabulary in ENGLISH so the learner fully understands.
+3. Teach authentic Bulgarian words, sentences, and expressions written in the Bulgarian Cyrillic alphabet.
+4. For all Bulgarian words and sentences, ALWAYS provide:
+   - Cyrillic Bulgarian (e.g., Здравейте!)
+   - English phonetic transcription in brackets, e.g., [zdráv-ey-te]
+   - Accurate English translation (e.g., "Hello (formal/plural)")
+   - Practical sample sentence in Bulgarian with English translation
+5. If the user provides a photo or asks about an image:
+   - Identify objects in the photo and teach Bulgarian vocabulary with noun gender and definite articles (e.g. "ябълка (f) [yá-bǎl-ka] - apple, ябълката - the apple").
+   - Describe the scene in Bulgarian and English, and ask a conversational question.
+6. Correct learner mistakes gently and positively, explaining the reason in English (e.g. noun gender agreement, verb conjugation, or definite article placement).
+7. Highlight authentic Bulgarian culture (customs like Martenitsa, Bulgarian holidays, traditional foods like banitsa, shopska salad, tarator, landmarks like Sofia, Plovdiv, Rila Monastery, Black Sea).
+8. Keep explanations clear, engaging, and encourage active practice with a short follow-up question or exercise.`;
 
-    // Construct contents
+    // Construct alternating contents for Gemini multi-turn conversation
     const contents: any[] = [];
 
-    // Prior history context
-    if (Array.isArray(messages) && messages.length > 0) {
-      // Pass the last up to 8 messages for context
-      const recent = messages.slice(-8);
-      for (const m of recent) {
+    // Prior history context (excluding the current latest user message)
+    if (Array.isArray(messages) && messages.length > 1) {
+      const prior = messages.slice(0, -1).slice(-8);
+      for (const m of prior) {
         contents.push({
           role: m.role === 'user' ? 'user' : 'model',
           parts: [{ text: m.content || '' }],
@@ -400,11 +445,14 @@ Your teaching principles:
         },
       });
       currentParts.push({
-        text: 'Please examine this image and teach me Bulgarian vocabulary, phrases, and cultural details related to what is shown. Explain in Bulgarian and English.',
+        text: 'Please examine this image and teach me Bulgarian vocabulary, phrases, and cultural details related to what is shown. Explain in English and Bulgarian.',
       });
     }
 
-    const lastUserMsg = messages && messages.length > 0 ? messages[messages.length - 1].content : 'Здравейте! Как сте?';
+    const lastUserMsg = messages && messages.length > 0 
+      ? messages[messages.length - 1].content 
+      : 'Hello! Teach me something useful in Bulgarian today.';
+
     currentParts.push({
       text: lastUserMsg || 'Teach me something useful in Bulgarian today!',
     });
@@ -470,10 +518,10 @@ Respond ONLY with a JSON object conforming to this schema:
 {
   "score": number, // 0 to 100
   "transcribed": string, // What the user said in Cyrillic
-  "accuracyRating": "Отлично (Excellent)" | "Много добре (Very Good)" | "Добро начало (Good Start)" | "Нужна е практика (Needs Practice)",
+  "accuracyRating": "Excellent" | "Very Good" | "Good Start" | "Needs Practice",
   "phoneticFeedback": string, // 2-3 sentences of constructive feedback in English with Bulgarian terms
   "keySoundsToImprove": string[], // List of 1-3 specific phonemes or words to focus on
-  "nativeExampleTip": string // A clear tip on mouth/tongue position or stress
+  "nativeExampleTip": string // A clear tip in English on mouth/tongue position or word stress
 }`;
 
     const response = await ai.models.generateContent({
@@ -506,10 +554,10 @@ Respond ONLY with a JSON object conforming to this schema:
       fallback: {
         score: 85,
         transcribed: targetText || 'Българска реч',
-        accuracyRating: 'Много добре (Very Good)',
-        phoneticFeedback: 'Good effort! Pay close attention to the vowel "ъ" and word stress.',
-        keySoundsToImprove: ['Ъ vowel', 'Stress on syllables'],
-        nativeExampleTip: 'Keep your mouth slightly rounded and vocalize firmly from the back of the throat for "ъ".',
+        accuracyRating: 'Very Good',
+        phoneticFeedback: 'Good effort! Pay close attention to the Bulgarian vowel "ъ" and word stress (ударение).',
+        keySoundsToImprove: ['The vowel "Ъ"', 'Word stress (ударение)'],
+        nativeExampleTip: 'Keep your lips relaxed and unrounded, producing the sound firmly from the mid-back of your mouth.',
       },
     });
   }

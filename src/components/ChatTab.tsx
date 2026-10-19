@@ -6,18 +6,12 @@ import {
   Image as ImageIcon, 
   Volume2, 
   Sparkles, 
-  RotateCcw, 
-  Search, 
-  HelpCircle, 
   Play, 
   Pause, 
   Award, 
-  CheckCircle, 
   Globe, 
   X,
-  RefreshCw,
-  Camera,
-  Layers
+  RefreshCw
 } from 'lucide-react';
 import { ChatMessage, ProficiencyLevel } from '../types';
 
@@ -29,12 +23,12 @@ interface ChatTabProps {
 const CYRILLIC_HELPERS = ['ъ', 'ж', 'ч', 'ш', 'щ', 'ю', 'я', 'ь', 'Ъ', 'Ж', 'Ч', 'Ш', 'Щ', 'Ю', 'Я'];
 
 const TOPIC_CHIPS = [
-  { id: 'greetings', label: 'Основни поздрави', prompt: 'Teach me essential Bulgarian greetings, polite expressions, and how to introduce myself.' },
-  { id: 'cafe', label: 'Кафе & Ресторант', prompt: 'Let\'s practice ordering coffee and traditional Bulgarian food in a restaurant in Sofia.' },
-  { id: 'culture', label: 'Баница & Традиции', prompt: 'Tell me about traditional Bulgarian food like banitsa and customs like Baba Marta / Martenitsa in Bulgarian.' },
-  { id: 'verbs', label: 'Глаголи & Граматика', prompt: 'Explain how Bulgarian verb conjugations work for common verbs like "съм" (to be) and "имам" (to have).' },
-  { id: 'shopping', label: 'Пазаруване & Числа', prompt: 'Let\'s practice asking for prices and counting Bulgarian Leva (лева).' },
-  { id: 'free', label: 'Свободен разговор', prompt: 'Let\'s have a casual everyday conversation in Bulgarian suited to my level!' },
+  { id: 'greetings', label: 'Essential Greetings', prompt: 'Teach me essential Bulgarian greetings, polite expressions, and how to introduce myself with pronunciation guides.' },
+  { id: 'cafe', label: 'Café & Dining', prompt: 'Let\'s practice ordering coffee, water, and traditional Bulgarian food in a restaurant in Sofia.' },
+  { id: 'culture', label: 'Culture & Traditions', prompt: 'Teach me about famous Bulgarian traditions like Baba Marta (Martenitsa) and foods like Banitsa in Bulgarian with English explanations.' },
+  { id: 'verbs', label: 'Verbs & Grammar', prompt: 'Explain how Bulgarian present tense verb conjugations work for key verbs like "съм" (to be) and "имам" (to have).' },
+  { id: 'shopping', label: 'Shopping & Numbers', prompt: 'Let\'s practice asking how much something costs and counting Bulgarian Leva (лева).' },
+  { id: 'free', label: 'Free Conversation', prompt: 'Let\'s have an everyday interactive Bulgarian conversation suited to my level!' },
 ];
 
 export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
@@ -42,19 +36,20 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
     {
       id: 'welcome-1',
       role: 'assistant',
-      content: `Здравей, **${username || 'Ученико'}**! 🇧🇬 Аз съм **Даскал** (Daskal) — твоят личен учител по български език.\n\n` +
-        `Можеш да:\n` +
-        `• 💬 **Пишеш на български или английски**\n` +
-        `• 🎙️ **Изпратиш гласово съобщение**, за да проверя твоето произношение\n` +
-        `• 📸 **Качиш снимка**, за да ти покажа българските думи за предметите на нея\n` +
-        `• 🖼️ **Поискаш илюстрация** за всяка българска дума\n\n` +
-        `За какво искаш да поговорим днес?`,
+      content: `Hello, **${username || 'Learner'}**! 🇧🇬 I am **Даскал** (Daskal) — your personal AI Bulgarian language tutor.\n\n` +
+        `Here is how we can learn together:\n` +
+        `• 💬 **Chat in English or Bulgarian**: Ask me any question, request translations, or practice conversation.\n` +
+        `• 🎙️ **Send Voice Messages**: Speak Bulgarian using the microphone — I will analyze your pronunciation, score your accuracy, and guide your accent.\n` +
+        `• 📸 **Send Photos**: Upload a photo of food, signs, or objects to learn the Bulgarian vocabulary for everything in the image.\n` +
+        `• 🔊 **Hear Native Audio**: Tap the **"Listen"** button on any response to hear clear Bulgarian pronunciation.\n` +
+        `• 🖼️ **Visual Flashcards**: Tap **"Flashcard"** to generate artwork illustrating new words.\n\n` +
+        `What would you like to explore first? Choose a topic above or type a message below!`,
       timestamp: new Date().toISOString(),
     },
   ]);
 
   const [inputText, setInputText] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('Свободен разговор');
+  const [selectedTopic, setSelectedTopic] = useState('Essential Greetings');
   const [useSearch, setUseSearch] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -94,7 +89,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
     const userMessage: ChatMessage = {
       id: 'user-' + Date.now(),
       role: 'user',
-      content: textToSend || (selectedImageBase64 ? '📷 [Изпратена снимка за анализ]' : ''),
+      content: textToSend || (selectedImageBase64 ? '📷 [Sent a photo for Bulgarian analysis]' : ''),
       timestamp: new Date().toISOString(),
       imageUrl: selectedImageBase64 || undefined,
     };
@@ -138,7 +133,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
       const errorMessage: ChatMessage = {
         id: 'err-' + Date.now(),
         role: 'assistant',
-        content: `Извинете, възникна временна грешка: ${err.message}. Моля, опитайте отново!`,
+        content: `Sorry, a temporary error occurred: ${err.message}. Please try again!`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -190,7 +185,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
       }, 1000);
     } catch (err) {
       console.error('Mic access error:', err);
-      alert('Моля, разрешете достъп до микрофона за изпращане на гласово съобщение.');
+      alert('Please allow microphone access to record your Bulgarian speech.');
     }
   };
 
@@ -217,7 +212,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
       const userMessage: ChatMessage = {
         id: userVoiceMsgId,
         role: 'user',
-        content: '🎙️ [Гласово съобщение]',
+        content: '🎙️ [Voice Message]',
         timestamp: new Date().toISOString(),
         audioUrl,
         audioDuration: recordingSeconds,
@@ -246,14 +241,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
             m.id === userVoiceMsgId
               ? {
                   ...m,
-                  content: `🎙️ "${analysis?.transcribed || 'Българска реч'}"`,
+                  content: `🎙️ Spoken: "${analysis?.transcribed || 'Bulgarian speech'}"`,
                   pronunciationAnalysis: analysis,
                 }
               : m
           )
         );
 
-        // Step 2: Teacher responds to what was said
+        // Step 2: Teacher responds to what was said in English + Bulgarian
         const chatRes = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -262,7 +257,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
               ...messages.map((m) => ({ role: m.role, content: m.content })),
               {
                 role: 'user',
-                content: `I spoke in Bulgarian: "${analysis?.transcribed}". My pronunciation score was ${analysis?.score || 85}%. Please respond to my spoken statement, encourage me, and provide feedback.`,
+                content: `I spoke in Bulgarian: "${analysis?.transcribed}". Pronunciation score was ${analysis?.score || 85}%. Please respond with encouraging feedback in English, translate what I said, and ask a follow-up question.`,
               },
             ],
             topic: selectedTopic,
@@ -275,7 +270,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
         const assistantMessage: ChatMessage = {
           id: 'asst-' + Date.now(),
           role: 'assistant',
-          content: chatData.message || 'Чудесно изказване! Продължавайте да говорите смело на български.',
+          content: chatData.message || 'Great effort speaking Bulgarian! Keep practicing out loud.',
           timestamp: new Date().toISOString(),
         };
 
@@ -368,7 +363,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
       {/* Topic Chips Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 shrink-0 no-scrollbar">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
-          Теми:
+          Quick Topics:
         </span>
         {TOPIC_CHIPS.map((chip) => (
           <button
@@ -397,7 +392,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
           >
             <div className="flex items-center gap-2 mb-1 text-[11px] text-slate-400">
               <span className="font-semibold text-slate-600">
-                {msg.role === 'user' ? username || 'Вие' : 'Даскал (Учител)'}
+                {msg.role === 'user' ? username || 'You' : 'Даскал (Tutor)'}
               </span>
               <span>·</span>
               <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -416,7 +411,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                 <div className="mb-3 rounded-xl overflow-hidden border border-white/20 max-w-sm">
                   <img
                     src={msg.imageUrl}
-                    alt="Uploaded for Bulgarian analysis"
+                    alt="Uploaded for Bulgarian vocabulary analysis"
                     className="w-full h-auto object-cover max-h-60"
                   />
                 </div>
@@ -430,13 +425,13 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                       const audio = new Audio(msg.audioUrl);
                       audio.play();
                     }}
-                    className="p-2 bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                    className="p-2 bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                   >
                     <Play className="w-4 h-4" />
                   </button>
                   <div className="text-xs">
-                    <div className="font-semibold">Гласов запис ({msg.audioDuration || 2}с)</div>
-                    <div className="text-[11px] opacity-80">Натиснете за прослушване</div>
+                    <div className="font-semibold">Voice Recording ({msg.audioDuration || 2}s)</div>
+                    <div className="text-[11px] opacity-80">Click to listen to your recording</div>
                   </div>
                 </div>
               )}
@@ -447,7 +442,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-rose-600 flex items-center gap-1">
                       <Award className="w-3.5 h-3.5" />
-                      <span>Оценка на произношението:</span>
+                      <span>Pronunciation Assessment:</span>
                     </span>
                     <span className="text-xs font-extrabold px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md border border-emerald-200">
                       {msg.pronunciationAnalysis.score}% ({msg.pronunciationAnalysis.accuracyRating})
@@ -458,7 +453,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                   </p>
                   {msg.pronunciationAnalysis.keySoundsToImprove?.length > 0 && (
                     <div className="text-[11px] text-slate-500">
-                      💡 Съсредоточете се върху: {msg.pronunciationAnalysis.keySoundsToImprove.join(', ')}
+                      💡 Focus sounds: {msg.pronunciationAnalysis.keySoundsToImprove.join(', ')}
                     </div>
                   )}
                 </div>
@@ -480,7 +475,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                     className="w-full h-auto object-cover max-h-60"
                   />
                   <div className="p-2 bg-white text-[11px] text-slate-500 text-center font-medium">
-                    ✨ Визуална картичка за думите в урока
+                    ✨ Visual flashcard for this Bulgarian lesson
                   </div>
                 </div>
               )}
@@ -494,7 +489,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                       onClick={() => handlePlayTts(msg.id, msg.content)}
                       disabled={generatingTtsId === msg.id}
                       className="flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition-colors cursor-pointer"
-                      title="Чуй как се произнася на български"
+                      title="Hear authentic Bulgarian pronunciation"
                     >
                       {generatingTtsId === msg.id ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -503,7 +498,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                       ) : (
                         <Volume2 className="w-3.5 h-3.5 text-slate-600" />
                       )}
-                      <span>{playingAudioId === msg.id ? 'Спиране' : 'Чуй произношението'}</span>
+                      <span>{playingAudioId === msg.id ? 'Pause' : 'Listen'}</span>
                     </button>
 
                     {/* Generate Visual Card */}
@@ -512,19 +507,19 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                         onClick={() => handleGenerateImage(msg.id, msg.content)}
                         disabled={generatingImageId === msg.id}
                         className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition-colors cursor-pointer"
-                        title="Генерирай илюстрация за урока"
+                        title="Generate visual illustration for this lesson"
                       >
                         {generatingImageId === msg.id ? (
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                         )}
-                        <span>Илюстрация</span>
+                        <span>Flashcard</span>
                       </button>
                     )}
                   </div>
 
-                  <span className="text-[11px] text-slate-400">Ниво: {level}</span>
+                  <span className="text-[11px] text-slate-400">Level: {level}</span>
                 </div>
               )}
             </div>
@@ -534,7 +529,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
         {isLoading && (
           <div className="flex items-center gap-2.5 text-slate-500 text-xs p-3 bg-slate-50 rounded-xl border border-slate-200 max-w-xs animate-pulse">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-600" />
-            <span>Даскал подготвя своя отговор на български...</span>
+            <span>Даскал is preparing your Bulgarian lesson...</span>
           </div>
         )}
 
@@ -544,13 +539,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
       {/* Cyrillic Quick-Helper Bar */}
       <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-2 bg-slate-100 rounded-t-xl border border-b-0 border-slate-200 text-xs">
         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 mr-1">
-          Кирилица:
+          Cyrillic Helpers:
         </span>
         {CYRILLIC_HELPERS.map((char) => (
           <button
             key={char}
             onClick={() => insertLetter(char)}
-            className="w-6 h-6 rounded bg-white hover:bg-slate-200 border border-slate-200 flex items-center justify-center font-bold text-slate-800 transition-colors shrink-0 shadow-2xs"
+            className="w-6 h-6 rounded bg-white hover:bg-slate-200 border border-slate-200 flex items-center justify-center font-bold text-slate-800 transition-colors shrink-0 shadow-2xs cursor-pointer"
+            title={`Insert ${char}`}
           >
             {char}
           </button>
@@ -566,11 +562,11 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
               alt="Preview"
               className="w-10 h-10 object-cover rounded-lg border border-slate-300"
             />
-            <span className="text-xs text-slate-700 font-medium">Снимката е готова за анализ</span>
+            <span className="text-xs text-slate-700 font-medium">Photo ready for Bulgarian vocabulary analysis</span>
           </div>
           <button
             onClick={() => setSelectedImageBase64(null)}
-            className="p-1 hover:bg-slate-200 rounded-lg text-slate-500"
+            className="p-1 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -594,8 +590,8 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-            title="Качи снимка за анализ на български"
+            className="p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+            title="Upload photo for Bulgarian vocabulary analysis"
           >
             <ImageIcon className="w-5 h-5" />
           </button>
@@ -609,7 +605,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                 ? 'bg-rose-600 text-white animate-pulse'
                 : 'hover:bg-slate-100 text-slate-500 hover:text-slate-800'
             }`}
-            title={isRecording ? 'Спри записа' : 'Запиши гласово съобщение'}
+            title={isRecording ? 'Stop Recording' : 'Record voice message in Bulgarian'}
           >
             {isRecording ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -625,7 +621,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
                   handleSendMessage();
                 }
               }}
-              placeholder={isRecording ? `Записване... (${recordingSeconds}s)` : "Напишете съобщение или въпрос на български..."}
+              placeholder={isRecording ? `Recording speech... (${recordingSeconds}s)` : "Ask a question in English or practice writing Bulgarian..."}
               rows={1}
               className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all resize-none"
             />
@@ -635,12 +631,12 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
           <button
             type="button"
             onClick={() => setUseSearch(!useSearch)}
-            className={`p-2.5 rounded-xl border transition-colors ${
+            className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
               useSearch
                 ? 'bg-sky-50 text-sky-700 border-sky-200'
                 : 'bg-slate-50 text-slate-400 border-slate-200'
             }`}
-            title={useSearch ? 'Търсене в отворени източници включено' : 'Търсене изключено'}
+            title={useSearch ? 'Open sources search grounding enabled' : 'Search grounding disabled'}
           >
             <Globe className="w-4 h-4" />
           </button>
@@ -651,6 +647,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
             onClick={() => handleSendMessage()}
             disabled={isLoading || (!inputText.trim() && !selectedImageBase64)}
             className="p-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl transition-colors cursor-pointer shadow-xs"
+            title="Send message"
           >
             <Send className="w-4 h-4" />
           </button>

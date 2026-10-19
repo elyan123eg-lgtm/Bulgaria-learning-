@@ -7,11 +7,7 @@ import {
   Pause, 
   Sparkles, 
   Award, 
-  RotateCcw, 
-  CheckCircle2, 
-  AlertCircle,
-  HelpCircle,
-  TrendingUp,
+  HelpCircle, 
   RefreshCw,
   Sliders
 } from 'lucide-react';
@@ -20,57 +16,57 @@ import { PronunciationDrill, ProficiencyLevel } from '../types';
 const PRESET_DRILLS: PronunciationDrill[] = [
   {
     id: 'drill-1',
-    title: 'Уникалният звук "Ъ"',
+    title: 'The Unique Vowel "Ъ"',
     sound: 'Ъ',
-    ipa: '[ɤ] (като ъ в "път")',
+    ipa: '[ɤ] (like "u" in "cut", but deeper)',
     bulgarianPhrase: 'Добре дошли в България!',
     transliteration: '[do-bré do-shlí v Bǎl-gá-ri-ya]',
     englishMeaning: 'Welcome to Bulgaria!',
-    tip: 'Отпуснете устните и произнесете дълбок гласен звук от задната част на гърлото, без да закръгляте устните.',
+    tip: 'Keep your lips unrounded and relaxed. Vocalize firmly from the mid-back of your mouth without shifting into "ah" or "oo".',
     difficulty: 'Beginner',
   },
   {
     id: 'drill-2',
-    title: 'Двойният звук "Щ"',
+    title: 'The Compound Sound "Щ"',
     sound: 'Щ',
-    ipa: '[ʃt] (ш + т)',
+    ipa: '[ʃt] (pronounced as blended "sh + t")',
     bulgarianPhrase: 'Лека нощ и хубава къща.',
     transliteration: '[lé-ka nosht i hú-ba-va kǎ́-shta]',
     englishMeaning: 'Good night and nice house.',
-    tip: 'Буквата "Щ" в българския винаги се произнася като слято "ШТ", никога отделно.',
+    tip: 'Unlike Russian where "Щ" is soft "shch", in Bulgarian it is always pronounced crisply as "sht" like in the word "fresh-toast".',
     difficulty: 'Beginner',
   },
   {
     id: 'drill-3',
-    title: 'Редукция на неударени гласни',
-    sound: 'О ➔ [У], А ➔ [Ъ]',
+    title: 'Vowel Reduction',
+    sound: 'O ➔ [U], A ➔ [Ъ]',
     ipa: '[o ➔ u, a ➔ ɤ]',
     bulgarianPhrase: 'Моля, дайте ми едно кафе с мляко.',
     transliteration: '[mó-lya, dáy-te mi ed-nó ka-fé s mlyá-ko]',
     englishMeaning: 'Please give me a coffee with milk.',
-    tip: 'Неудареното "О" в българския леко клони към "У" (напр. "едну кафе"), а неудареното "А" към "Ъ".',
+    tip: 'Unstressed "O" in natural Bulgarian speech is reduced slightly towards [U], and unstressed "A" softens towards [Ъ].',
     difficulty: 'Intermediate',
   },
   {
     id: 'drill-4',
-    title: 'Ударение и интонация',
-    sound: 'Ударение',
+    title: 'Word Stress & Intonation',
+    sound: 'Word Stress (Ударение)',
     ipa: '[vǎ́l-na vs vǎl-ná]',
     bulgarianPhrase: 'Днес времето е чудесно за разходка.',
     transliteration: '[dnes vré-me-to e chu-dés-no za raz-hód-ka]',
     englishMeaning: 'Today the weather is wonderful for a walk.',
-    tip: 'Ударението в българския е динамично и свободно. Обърнете внимание коя сричка е най-звучна.',
+    tip: 'Bulgarian stress is dynamic and free. Vowels in stressed syllables are pronounced longer and louder than unstressed vowels.',
     difficulty: 'Intermediate',
   },
   {
     id: 'drill-5',
-    title: 'Бързопоговорка за напреднали',
+    title: 'Advanced Tongue-Twister',
     sound: 'Ж, Ч, Ш',
     ipa: '[ʒ, tʃ, ʃ]',
     bulgarianPhrase: 'Чичковите червенотиквеничета.',
     transliteration: '[chísh-ko-vi-te cher-ve-no-tik-ve-ni-che-ta]',
-    englishMeaning: 'Uncle\'s little red pumpkin seeds (classic Bulgarian tongue-twister).',
-    tip: 'Класическа българска бързоговорка за трениране на звуковете Ч, Ш и меките съгласни!',
+    englishMeaning: 'Uncle\'s little red pumpkin seeds (the most famous Bulgarian tongue-twister).',
+    tip: 'Focus on clear transitions between the "ch" sound and the rhythm of the compound adjective!',
     difficulty: 'Advanced',
   },
 ];
@@ -82,7 +78,6 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
   // Audio playback state
   const [isPlayingNative, setIsPlayingNative] = useState(false);
   const [audioSpeed, setAudioSpeed] = useState<0.8 | 1.0>(1.0);
-  const [nativeAudioUrl, setNativeAudioUrl] = useState<string | null>(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -121,7 +116,6 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
       });
       const data = await res.json();
       if (data.success && data.audioDataUrl) {
-        setNativeAudioUrl(data.audioDataUrl);
         const audio = new Audio(data.audioDataUrl);
         audio.playbackRate = audioSpeed;
         audioRef.current = audio;
@@ -140,7 +134,6 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
       }
     } catch (err) {
       console.error('TTS error:', err);
-      // Speech synthesis fallback
       const synth = window.speechSynthesis;
       const utter = new SpeechSynthesisUtterance(textToSpeak);
       utter.lang = 'bg-BG';
@@ -187,7 +180,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
       }, 1000);
     } catch (err) {
       console.error('Microphone access denied:', err);
-      alert('Моля, разрешете достъп до микрофона, за да упражнявате своето произношение.');
+      alert('Please allow microphone access to practice your Bulgarian pronunciation.');
     }
   };
 
@@ -207,7 +200,6 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
     setEvaluation(null);
 
     try {
-      // Convert Blob to base64
       const reader = new FileReader();
       reader.readAsDataURL(recordedAudioBlob);
       reader.onloadend = async () => {
@@ -248,20 +240,20 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
       <div className="border-b border-slate-200 pb-5">
         <div className="flex items-center gap-2 text-rose-600 text-xs font-bold uppercase tracking-wider mb-1">
           <Sparkles className="w-4 h-4" />
-          <span>Интерактивна фонетика и гласов анализ</span>
+          <span>Interactive Phonetics & Speech Assessment</span>
         </div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Лаборатория за българско произношение
+          Bulgarian Pronunciation Lab
         </h1>
         <p className="text-sm text-slate-600 mt-1">
-          Чуйте автентичното звучене от нашия AI модел, запишете гласа си и получете незабавна оценка и насоки за подобрение.
+          Listen to native Bulgarian pronunciation, record yourself speaking, and receive instant AI analysis with actionable tips for improvement.
         </p>
       </div>
 
       {/* Drill Selector Tabs */}
       <div className="space-y-3">
         <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-          Изберете фонетично упражнение:
+          Select a Sound Drill:
         </label>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
           {PRESET_DRILLS.map((drill) => (
@@ -295,8 +287,8 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
         {/* Target Phrase Box */}
         <div className="space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-            <span>Целева фраза за упражнение</span>
-            <span className="font-mono">{selectedDrill.ipa}</span>
+            <span>Target Bulgarian Phrase</span>
+            <span className="font-mono text-slate-600">{selectedDrill.ipa}</span>
           </div>
 
           <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2">
@@ -315,7 +307,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
           <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
             <HelpCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Фонетичен съвет: </span>
+              <span className="font-bold">Phonetic Tip: </span>
               <span>{selectedDrill.tip}</span>
             </div>
           </div>
@@ -329,10 +321,10 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
             <div>
               <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                 <Volume2 className="w-4 h-4 text-slate-600" />
-                <span>1. Чуйте правилното звучене</span>
+                <span>1. Listen to Native Speaker</span>
               </div>
               <p className="text-xs text-slate-500">
-                AI преподавателят произнася фразата с естествена българска интонация
+                AI native tutor speaks the phrase with authentic Bulgarian intonation and stress
               </p>
             </div>
 
@@ -349,14 +341,14 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                 ) : (
                   <Play className="w-4 h-4" />
                 )}
-                <span>{isPlayingNative ? 'Слушане...' : 'Чуй модела'}</span>
+                <span>{isPlayingNative ? 'Playing audio...' : 'Hear Native Audio'}</span>
               </button>
 
               {/* Speed control */}
               <button
                 onClick={() => setAudioSpeed(audioSpeed === 1.0 ? 0.8 : 1.0)}
-                className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
-                title="Скорост на възпроизвеждане"
+                className="px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Playback speed (0.8x for learners)"
               >
                 {audioSpeed}x
               </button>
@@ -368,14 +360,14 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
             <div>
               <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1">
                 <Mic className="w-4 h-4 text-rose-600" />
-                <span>2. Запишете вашето произношение</span>
+                <span>2. Record Your Voice</span>
               </div>
               <p className="text-xs text-slate-500">
                 {isRecording 
-                  ? `Записване... (${recordingSeconds} сек)`
+                  ? `Recording in progress... (${recordingSeconds}s)`
                   : recordedAudioUrl 
-                  ? 'Записът е готов за проверка!' 
-                  : 'Натиснете бутона и произнесете фразата на глас'}
+                  ? 'Recording ready for assessment!' 
+                  : 'Press the button and speak the Bulgarian phrase out loud'}
               </p>
             </div>
 
@@ -386,7 +378,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                   className="flex-1 py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white font-medium text-xs rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
                   <Mic className="w-4 h-4" />
-                  <span>{recordedAudioUrl ? 'Запиши отново' : 'Започни запис'}</span>
+                  <span>{recordedAudioUrl ? 'Record Again' : 'Start Recording'}</span>
                 </button>
               ) : (
                 <button
@@ -394,7 +386,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                   className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer animate-pulse"
                 >
                   <MicOff className="w-4 h-4 text-rose-400" />
-                  <span>Спри записа ({recordingSeconds}s)</span>
+                  <span>Stop Recording ({recordingSeconds}s)</span>
                 </button>
               )}
 
@@ -404,8 +396,8 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                     const audio = new Audio(recordedAudioUrl);
                     audio.play();
                   }}
-                  className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors"
-                  title="Чуй своя запис"
+                  className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+                  title="Listen to your recording"
                 >
                   <Play className="w-4 h-4" />
                 </button>
@@ -426,12 +418,12 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
               {isEvaluating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>AI анализира звуковете и ударението...</span>
+                  <span>AI analyzing Bulgarian phonemes and word stress...</span>
                 </>
               ) : (
                 <>
                   <Award className="w-4 h-4" />
-                  <span>Оцени моето произношение с AI</span>
+                  <span>Evaluate My Pronunciation with AI</span>
                 </>
               )}
             </button>
@@ -453,7 +445,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                     {evaluation.accuracyRating}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Чуто от AI: "{evaluation.transcribed}"
+                    Transcribed: "{evaluation.transcribed}"
                   </p>
                 </div>
               </div>
@@ -463,7 +455,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                   : 'bg-amber-50 text-amber-800 border-amber-200'
               }`}>
-                {evaluation.score >= 85 ? 'Браво!' : 'Има напредък!'}
+                {evaluation.score >= 85 ? 'Great Work!' : 'Good Progress!'}
               </span>
             </div>
 
@@ -471,7 +463,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
             <div className="space-y-3">
               <div>
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Обратна връзка от преподавателя:
+                  Teacher's Phonetic Feedback:
                 </h4>
                 <p className="text-xs text-slate-700 leading-relaxed bg-white p-3 rounded-xl border border-slate-200">
                   {evaluation.phoneticFeedback}
@@ -481,7 +473,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
               {evaluation.keySoundsToImprove && evaluation.keySoundsToImprove.length > 0 && (
                 <div>
                   <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Звуци за допълнително внимание:
+                    Sounds to Focus On:
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {evaluation.keySoundsToImprove.map((sound, i) => (
@@ -500,7 +492,7 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
                 <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 flex items-start gap-2">
                   <Sparkles className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Практически съвет: </span>
+                    <span className="font-bold">Practical Advice: </span>
                     <span>{evaluation.nativeExampleTip}</span>
                   </div>
                 </div>
@@ -515,26 +507,26 @@ export const PronunciationLab: React.FC<{ level: ProficiencyLevel }> = ({ level 
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
           <Sliders className="w-4 h-4 text-slate-500" />
-          <span>Собствена фраза за упражнение</span>
+          <span>Practice Any Custom Bulgarian Phrase</span>
         </div>
         <p className="text-xs text-slate-500">
-          Въведете всяка българска дума или изречение, за да проверите своето произношение:
+          Type any Bulgarian phrase to hear its native pronunciation and test your speaking:
         </p>
         <div className="flex gap-2">
           <input
             type="text"
             value={customPhrase}
             onChange={(e) => setCustomPhrase(e.target.value)}
-            placeholder="напр. 'Една чаша червено вино, моля'"
+            placeholder="e.g. 'Една чаша червено вино, моля' (A glass of red wine, please)"
             className="flex-1 px-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition-all"
           />
           {customPhrase && (
             <button
               onClick={() => handlePlayNative(customPhrase)}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Volume2 className="w-3.5 h-3.5" />
-              <span>Чуй</span>
+              <span>Listen</span>
             </button>
           )}
         </div>
