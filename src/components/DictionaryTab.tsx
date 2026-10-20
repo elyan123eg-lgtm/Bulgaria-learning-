@@ -3,18 +3,18 @@ import {
   Search, 
   Book, 
   Volume2, 
-  Play, 
   Pause, 
   Sparkles, 
   Database, 
   Copy, 
   Check, 
-  ExternalLink,
   Filter,
-  CheckCircle2,
-  Mic
+  Mic,
+  BookMarked,
+  FileSpreadsheet
 } from 'lucide-react';
 import { BULGARIAN_DICTIONARY, DictionaryEntry } from '../data/bulgarianDictionary';
+import { CORE_BOOK_WORDS } from '../data/bookVocabulary';
 
 interface DictionaryTabProps {
   onSelectForPractice?: (phrase: string) => void;
@@ -40,25 +40,50 @@ export const DictionaryTab: React.FC<DictionaryTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedSource, setSelectedSource] = useState<'All' | 'practice_book' | 'core_2000'>('All');
   const [playingWordId, setPlayingWordId] = useState<number | null>(null);
   const [showD1Modal, setShowD1Modal] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
 
-  // Dynamic search and filter
+  // Combined master list with source tags
+  const masterDictionary = useMemo<DictionaryEntry[]>(() => {
+    const list1: DictionaryEntry[] = BULGARIAN_DICTIONARY.map((item) => ({
+      ...item,
+      sourceBook: 'practice_book',
+      sourceTitle: 'The Bulgarian Language in Practice (Eleonora Ivanova)',
+    }));
+
+    const list2: DictionaryEntry[] = CORE_BOOK_WORDS.map((w) => ({
+      id: 10000 + w.id,
+      bg: w.bulgarian,
+      en: w.english,
+      partOfSpeech: 'expression' as const,
+      category: (w.category as any) || 'Greetings',
+      sampleBg: w.sampleBulgarian,
+      sampleEn: w.sampleEnglish,
+      sourceBook: 'core_2000',
+      sourceTitle: '2000 Core Words and Phrases',
+    }));
+
+    return [...list1, ...list2];
+  }, []);
+
+  // Filtered by search, category, and textbook source
   const filteredWords = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return BULGARIAN_DICTIONARY.filter((item) => {
+    return masterDictionary.filter((item) => {
+      const matchesSource = selectedSource === 'All' || item.sourceBook === selectedSource;
       const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
       const matchesQuery = !q ||
         item.bg.toLowerCase().includes(q) ||
         item.en.toLowerCase().includes(q) ||
         (item.sampleBg && item.sampleBg.toLowerCase().includes(q)) ||
         (item.sampleEn && item.sampleEn.toLowerCase().includes(q));
-      return matchesCategory && matchesQuery;
+      return matchesSource && matchesCategory && matchesQuery;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [masterDictionary, searchQuery, selectedCategory, selectedSource]);
 
-  // Audio Pronunciation via SpeechSynthesis / TTS
+  // Audio Pronunciation via SpeechSynthesis
   const handlePlayAudio = (word: DictionaryEntry) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -70,30 +95,13 @@ export const DictionaryTab: React.FC<DictionaryTabProps> = ({
       const textToSpeak = word.bg.replace(/<[^>]*>?/gm, '');
       const utter = new SpeechSynthesisUtterance(textToSpeak);
       utter.lang = 'bg-BG';
-      utter.rate = 0.85; // Pedagogical pace
+      utter.rate = 0.85;
 
       utter.onend = () => setPlayingWordId(null);
       utter.onerror = () => setPlayingWordId(null);
 
       setPlayingWordId(word.id);
       window.speechSynthesis.speak(utter);
-    } else {
-      // Server TTS fallback
-      fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: word.bg }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.audioDataUrl) {
-            const audio = new Audio(data.audioDataUrl);
-            audio.onended = () => setPlayingWordId(null);
-            setPlayingWordId(word.id);
-            audio.play();
-          }
-        })
-        .catch(console.error);
     }
   };
 
@@ -114,6 +122,7 @@ CREATE TABLE IF NOT EXISTS dictionary (
   en TEXT NOT NULL,
   part_of_speech TEXT NOT NULL,
   category TEXT NOT NULL,
+  source_book TEXT NOT NULL,
   sample_bg TEXT,
   sample_en TEXT
 );
@@ -128,16 +137,15 @@ CREATE TABLE IF NOT EXISTS lessons (
   dialogue_title TEXT
 );
 
--- Seed entries from 'The Bulgarian Language in Practice' (Eleonora Ivanova)
-INSERT OR IGNORE INTO dictionary (bg, en, part_of_speech, category, sample_bg, sample_en)
+-- Seed entries from both textbooks
+INSERT OR IGNORE INTO dictionary (bg, en, part_of_speech, category, source_book, sample_bg, sample_en)
 VALUES
-('здравейте', 'hello (formal/plural)', 'expression', 'Greetings', 'Здравейте, как сте?', 'Hello, how are you?'),
-('благодаря', 'thank you', 'expression', 'Greetings', 'Благодаря, добре съм.', 'Thank you, I am fine.'),
-('шопска салата', 'Shopska salad', 'noun (f)', 'Food & Drinks', 'Поръчвам шопска салата.', 'I order Shopska salad.'),
-('таратор', 'cold cucumber soup', 'noun (m)', 'Food & Drinks', 'Тараторът е вкусен.', 'Tarator is delicious.'),
-('баница', 'cheese filo pie', 'noun (f)', 'Food & Drinks', 'Топла баница с боза.', 'Warm banitsa with boza.'),
-('ракия', 'fruit brandy', 'noun (f)', 'Food & Drinks', 'Българска мускатова ракия.', 'Bulgarian muscat rakia.'),
-('метро', 'subway, metro', 'noun (n)', 'Travel & City', 'Софийското метро е бързо.', 'Sofia metro is fast.');`;
+('здравейте', 'hello (formal/plural)', 'expression', 'Greetings', 'The Bulgarian Language in Practice', 'Здравейте, как сте?', 'Hello, how are you?'),
+('благодаря', 'thank you', 'expression', 'Greetings', '2000 Core Words & Phrases', 'Благодаря, добре съм.', 'Thank you, I am fine.'),
+('шопска салата', 'Shopska salad', 'noun (f)', 'Food & Drinks', 'The Bulgarian Language in Practice', 'Поръчвам шопска салата.', 'I order Shopska salad.'),
+('таратор', 'cold cucumber soup', 'noun (m)', 'Food & Drinks', '2000 Core Words & Phrases', 'Тараторът е вкусен.', 'Tarator is delicious.'),
+('баница', 'cheese filo pie', 'noun (f)', 'Food & Drinks', 'The Bulgarian Language in Practice', 'Топла баница с боза.', 'Warm banitsa with boza.'),
+('метро', 'subway, metro', 'noun (n)', 'Travel & City', 'The Bulgarian Language in Practice', 'Софийското метро е бързо.', 'Sofia metro is fast.');`;
 
   const copyD1SqlToClipboard = () => {
     navigator.clipboard.writeText(sampleD1Sql);
@@ -152,7 +160,7 @@ VALUES
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold shadow-xs">
               <Book className="w-5 h-5" />
             </div>
             <div>
@@ -160,7 +168,7 @@ VALUES
                 Bulgarian-English Dictionary
               </h1>
               <p className="text-xs text-slate-500">
-                Grounded in <i>The Bulgarian Language in Practice</i> (Eleonora Ivanova, 2000)
+                Grounded in both <i>The Bulgarian Language in Practice</i> & <i>2000 Core Words & Phrases</i>
               </p>
             </div>
           </div>
@@ -177,7 +185,65 @@ VALUES
         </button>
       </div>
 
-      {/* Search and Filters Bar */}
+      {/* Distinct Textbook Source Selector */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+          <span>Filter by Textbook Source:</span>
+          <span>{filteredWords.length} words matched</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            onClick={() => setSelectedSource('All')}
+            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              selectedSource === 'All'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <div className="text-xs font-bold">All Sources (Both Books)</div>
+            <div className={`text-[10px] mt-0.5 ${selectedSource === 'All' ? 'text-slate-300' : 'text-slate-400'}`}>
+              Complete combined vocabulary
+            </div>
+          </button>
+
+          <button
+            onClick={() => setSelectedSource('practice_book')}
+            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              selectedSource === 'practice_book'
+                ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                : 'bg-emerald-50/50 hover:bg-emerald-100/50 text-emerald-900 border-emerald-200'
+            }`}
+          >
+            <div className="text-xs font-bold flex items-center gap-1.5">
+              <BookMarked className="w-3.5 h-3.5" />
+              <span>Ivanova Practice Book</span>
+            </div>
+            <div className={`text-[10px] mt-0.5 ${selectedSource === 'practice_book' ? 'text-emerald-100' : 'text-emerald-700'}`}>
+              25 Lessons & 9 Appendices
+            </div>
+          </button>
+
+          <button
+            onClick={() => setSelectedSource('core_2000')}
+            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              selectedSource === 'core_2000'
+                ? 'bg-sky-700 text-white border-sky-700 shadow-xs'
+                : 'bg-sky-50/50 hover:bg-sky-100/50 text-sky-900 border-sky-200'
+            }`}
+          >
+            <div className="text-xs font-bold flex items-center gap-1.5">
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>2000 Core Words & Phrases</span>
+            </div>
+            <div className={`text-[10px] mt-0.5 ${selectedSource === 'core_2000' ? 'text-sky-100' : 'text-sky-700'}`}>
+              10 Thematic Frequency Chapters
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Search and Category Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
         {/* Search Input */}
         <div className="relative">
@@ -213,21 +279,6 @@ VALUES
         </div>
       </div>
 
-      {/* Dictionary Results Count */}
-      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-        <span>
-          Showing <b>{filteredWords.length}</b> words from the textbook word list
-        </span>
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery('')}
-            className="text-sky-600 hover:underline cursor-pointer"
-          >
-            Clear search
-          </button>
-        )}
-      </div>
-
       {/* Word Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {filteredWords.map((word) => (
@@ -236,7 +287,7 @@ VALUES
             className="bg-white rounded-xl border border-slate-200 p-4 hover:border-slate-300 hover:shadow-xs transition-all space-y-2.5 flex flex-col justify-between"
           >
             <div>
-              {/* Header row: Bulgarian word, part of speech badge, category */}
+              {/* Header row: Bulgarian word, source badge, part of speech */}
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 tracking-tight">
@@ -248,11 +299,15 @@ VALUES
                 </div>
 
                 <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${
+                    word.sourceBook === 'practice_book'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-sky-50 text-sky-800 border-sky-200'
+                  }`}>
+                    {word.sourceBook === 'practice_book' ? '📘 Ivanova Course' : '📗 2000 Words'}
+                  </span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${getPosBadgeColor(word.partOfSpeech)}`}>
                     {word.partOfSpeech}
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    {word.category}
                   </span>
                 </div>
               </div>
@@ -275,7 +330,7 @@ VALUES
               <button
                 onClick={() => handlePlayAudio(word)}
                 className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer"
-                title="Listen to native pronunciation"
+                title="Listen to pronunciation"
               >
                 {playingWordId === word.id ? (
                   <Pause className="w-3.5 h-3.5 text-rose-500" />
@@ -290,7 +345,6 @@ VALUES
                   <button
                     onClick={() => onSelectForPractice(word.bg)}
                     className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                    title="Practice speaking this word in Pronunciation Lab"
                   >
                     <Mic className="w-3 h-3" />
                     <span>Practice</span>
@@ -299,9 +353,8 @@ VALUES
 
                 {onSelectForChat && (
                   <button
-                    onClick={() => onSelectForChat(`How is the word "${word.bg}" used in Bulgarian sentences? Teach me common expressions.`)}
+                    onClick={() => onSelectForChat(`How is the word "${word.bg}" (${word.en}) used in Bulgarian sentences? Teach me sample dialogues.`)}
                     className="flex items-center gap-1 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer shadow-2xs"
-                    title="Ask Daskal to teach you more with this word"
                   >
                     <Sparkles className="w-3 h-3 text-amber-400" />
                     <span>Ask Tutor</span>
@@ -318,12 +371,12 @@ VALUES
           <Book className="w-8 h-8 text-slate-300 mx-auto" />
           <h3 className="text-base font-semibold text-slate-700">No words found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Try searching for a different Bulgarian or English word, or choose another topic category above.
+            Try searching for another word, or switch the textbook filter above to search both books.
           </p>
         </div>
       )}
 
-      {/* Cloudflare D1 Database Modal */}
+      {/* Cloudflare D1 Modal */}
       {showD1Modal && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -343,11 +396,11 @@ VALUES
             </div>
 
             <p className="text-xs text-slate-600">
-              You already created your Cloudflare D1 database <b><code>bulgarialearning</code></b>. Here is the ready-to-run SQL schema and seed data containing the textbook lessons, vocabulary, and user profile tables.
+              Your Cloudflare D1 database <b><code>bulgarialearning</code></b> can store tables for both textbooks (all 25 lessons + 2,000 words).
             </p>
 
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5">
-              <div className="font-semibold text-slate-800">How to execute in Cloudflare Wrangler:</div>
+              <div className="font-semibold text-slate-800">Execute in Cloudflare Wrangler:</div>
               <pre className="bg-slate-900 text-slate-100 p-2.5 rounded-lg text-[11px] font-mono overflow-x-auto">
                 npx wrangler d1 execute bulgarialearning --file=./src/data/d1_schema.sql
               </pre>

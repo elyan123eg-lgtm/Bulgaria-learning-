@@ -6,6 +6,8 @@ export interface DictionaryEntry {
   category: 'Greetings' | 'Food & Drinks' | 'Travel & City' | 'Home & Family' | 'Health & Body' | 'Work & Office' | 'Nature & Animals' | 'Grammar & Numbers' | 'Shopping & Money';
   sampleBg?: string;
   sampleEn?: string;
+  sourceBook?: 'practice_book' | 'core_2000';
+  sourceTitle?: string;
 }
 
 export const BULGARIAN_DICTIONARY: DictionaryEntry[] = [

@@ -119,6 +119,8 @@ export default function App() {
           <ChatTab 
             level={userProfile.level} 
             username={userProfile.username} 
+            initialPrompt={chatPromptOverride}
+            onClearInitialPrompt={() => setChatPromptOverride(null)}
           />
         )}
 
@@ -144,7 +146,10 @@ export default function App() {
           />
         )}
         {activeTab === 'dictionary' && (
-          <DictionaryTab />
+          <DictionaryTab 
+            onSelectForPractice={handleSelectForPractice}
+            onSelectForChat={handleSelectForChat}
+          />
         )}
       </main>
 

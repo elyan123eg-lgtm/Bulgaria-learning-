@@ -18,38 +18,51 @@ import { ChatMessage, ProficiencyLevel } from '../types';
 interface ChatTabProps {
   level: ProficiencyLevel;
   username: string;
+  initialPrompt?: string | null;
+  onClearInitialPrompt?: () => void;
 }
 
 const CYRILLIC_HELPERS = ['ъ', 'ж', 'ч', 'ш', 'щ', 'ю', 'я', 'ь', 'Ъ', 'Ж', 'Ч', 'Ш', 'Щ', 'Ю', 'Я'];
 
 const TOPIC_CHIPS = [
-  { id: 'greetings', label: 'Essential Greetings', prompt: 'Teach me essential Bulgarian greetings, polite expressions, and how to introduce myself with pronunciation guides.' },
-  { id: 'cafe', label: 'Café & Dining', prompt: 'Let\'s practice ordering coffee, water, and traditional Bulgarian food in a restaurant in Sofia.' },
-  { id: 'culture', label: 'Culture & Traditions', prompt: 'Teach me about famous Bulgarian traditions like Baba Marta (Martenitsa) and foods like Banitsa in Bulgarian with English explanations.' },
-  { id: 'verbs', label: 'Verbs & Grammar', prompt: 'Explain how Bulgarian present tense verb conjugations work for key verbs like "съм" (to be) and "имам" (to have).' },
-  { id: 'shopping', label: 'Shopping & Numbers', prompt: 'Let\'s practice asking how much something costs and counting Bulgarian Leva (лева).' },
-  { id: 'free', label: 'Free Conversation', prompt: 'Let\'s have an everyday interactive Bulgarian conversation suited to my level!' },
+  { id: 'practice-1', label: '📘 Lesson 1: Greetings & "Съм"', prompt: 'Teach me Lesson 1 of "The Bulgarian Language in Practice" (Meeting & Introductions) with the verb "съм" and vocative forms.' },
+  { id: 'practice-2', label: '📘 Lesson 2: Gender & Articles', prompt: 'Teach me Lesson 2 of "The Bulgarian Language in Practice" (Gender of nouns and definite articles: -ът, -та, -то).' },
+  { id: 'practice-4', label: '📘 Lesson 4: Days & Numbers', prompt: 'Teach me Lesson 4 of "The Bulgarian Language in Practice" (Days of the week and prepositions във/със).' },
+  { id: 'practice-14', label: '📘 Lesson 14: Transport & Aspect', prompt: 'Teach me Lesson 14 of "The Bulgarian Language in Practice" (Public transport in Sofia and verbal aspects: купувам vs купя).' },
+  { id: 'practice-19', label: '📘 Lesson 19: Dining & Cuisine', prompt: 'Teach me Lesson 19 of "The Bulgarian Language in Practice" (Ordering Shopska salad, Tarator, and Banitsa in a traditional bistro).' },
+  { id: 'practice-22', label: '📘 Lesson 22: Baba Marta & Holidays', prompt: 'Teach me Lesson 22 of "The Bulgarian Language in Practice" about Baba Marta, Martenitsa, and Bulgarian Name Days.' },
+  { id: 'core-1', label: '📗 Chapter 1: Top 200 Core Words', prompt: 'Teach me the most common conversational expressions from Chapter 1 of "2000 Core Words and Phrases".' },
+  { id: 'core-4', label: '📗 Chapter 4: Dining & Ordering', prompt: 'Teach me key restaurant and café vocabulary with sample sentences from Chapter 4 of "2000 Core Words".' },
+  { id: 'core-10', label: '📗 Chapter 10: Mastery & Foods', prompt: 'Teach me advanced conversational Bulgarian phrases from Chapter 10 of "2000 Core Words and Phrases".' },
 ];
 
-export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
+export const ChatTab: React.FC<ChatTabProps> = ({ 
+  level, 
+  username, 
+  initialPrompt, 
+  onClearInitialPrompt 
+}) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
       role: 'assistant',
       content: `Hello, **${username || 'Learner'}**! 🇧🇬 I am **Даскал** (Daskal) — your personal AI Bulgarian language tutor.\n\n` +
+        `I am grounded in **BOTH** of your official reference textbooks:\n` +
+        `1. 📘 **"The Bulgarian Language in Practice"** (Eleonora Ivanova, 2000) — all 25 complete lessons & 9 appendices.\n` +
+        `2. 📗 **"2000 Core Words and Phrases - Bulgarian"** (Innovative Language) — all 10 thematic vocabulary chapters.\n\n` +
         `Here is how we can learn together:\n` +
         `• 💬 **Chat in English or Bulgarian**: Ask me any question, request translations, or practice conversation.\n` +
-        `• 🎙️ **Send Voice Messages**: Speak Bulgarian using the microphone — I will analyze your pronunciation, score your accuracy, and guide your accent.\n` +
-        `• 📸 **Send Photos**: Upload a photo of food, signs, or objects to learn the Bulgarian vocabulary for everything in the image.\n` +
-        `• 🔊 **Hear Native Audio**: Tap the **"Listen"** button on any response to hear clear Bulgarian pronunciation.\n` +
-        `• 🖼️ **Visual Flashcards**: Tap **"Flashcard"** to generate artwork illustrating new words.\n\n` +
-        `What would you like to explore first? Choose a topic above or type a message below!`,
+        `• 🎙️ **Send Voice Messages**: Speak Bulgarian using the microphone — I will analyze your pronunciation and score your accuracy.\n` +
+        `• 📸 **Send Photos**: Upload a photo to learn Bulgarian vocabulary for everything in the image.\n` +
+        `• 🔊 **Hear Audio**: Tap the **"Listen"** button on any response to hear clear Bulgarian pronunciation.\n\n` +
+        `Choose a topic above or type a message below to start practicing!`,
       timestamp: new Date().toISOString(),
     },
   ]);
 
   const [inputText, setInputText] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('Essential Greetings');
+  const [bookReference, setBookReference] = useState<'both' | 'practice_book' | 'core_2000'>('both');
   const [useSearch, setUseSearch] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -80,6 +93,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  // Handle external prompt override (e.g. from Dictionary or Book tabs)
+  useEffect(() => {
+    if (initialPrompt) {
+      handleSendMessage(initialPrompt);
+      if (onClearInitialPrompt) onClearInitialPrompt();
+    }
+  }, [initialPrompt]);
 
   // Handle Text Submission
   const handleSendMessage = async (customPrompt?: string) => {
@@ -113,16 +134,19 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
           imageBase64: curImage,
           imageMimeType: curMime,
           useSearch,
+          bookSource: bookReference,
         }),
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Failed to generate response');
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        const text = await res.text();
+        throw new Error(text || 'Invalid response from tutor');
       }
 
-      const data = await res.json();
-      if (data.message) {
+      if (data && data.message) {
         const assistantMessage: ChatMessage = {
           id: 'asst-' + Date.now(),
           role: 'assistant',
@@ -130,15 +154,17 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
+      } else if (data && data.error) {
+        throw new Error(data.error);
       } else {
-        throw new Error('No message received');
+        throw new Error('No message received from tutor');
       }
     } catch (err: any) {
       console.error('Chat error:', err);
       const errorMessage: ChatMessage = {
         id: 'err-' + Date.now(),
         role: 'assistant',
-        content: `Sorry, a temporary error occurred: ${err.message}. Please try again!`,
+        content: `Здравейте! I am currently operating in textbook offline mode. ${err.message || 'Please try sending your message again!'}`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -381,7 +407,37 @@ export const ChatTab: React.FC<ChatTabProps> = ({ level, username }) => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col h-[calc(100vh-5rem)]">
-      
+      {/* Book Reference Switcher */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2 p-1.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
+          Curriculum Source:
+        </span>
+        <button
+          onClick={() => setBookReference('both')}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            bookReference === 'both' ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          📚 Both Textbooks
+        </button>
+        <button
+          onClick={() => setBookReference('practice_book')}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            bookReference === 'practice_book' ? 'bg-emerald-700 text-white shadow-xs' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+          }`}
+        >
+          📘 The Bulgarian Language in Practice (25 Lessons)
+        </button>
+        <button
+          onClick={() => setBookReference('core_2000')}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            bookReference === 'core_2000' ? 'bg-sky-700 text-white shadow-xs' : 'bg-sky-50 text-sky-800 hover:bg-sky-100'
+          }`}
+        >
+          📗 2000 Core Words & Phrases (10 Chapters)
+        </button>
+      </div>
+
       {/* Topic Chips Bar */}
       <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-2 shrink-0 no-scrollbar">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">

@@ -51,8 +51,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <MessageSquare className="w-4 h-4 shrink-0" />
-              <span>Lessons & Chat</span>
+              <MessageSquare className="w-4 h-4 shrink-0 text-emerald-500" />
+              <span>AI Tutor Chat</span>
             </button>
 
             <button
@@ -63,8 +63,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <BookOpen className="w-4 h-4 shrink-0 text-emerald-600" />
-              <span>2000 Core Words</span>
+              <BookOpen className="w-4 h-4 shrink-0 text-sky-500" />
+              <span>2 Books & 25 Lessons</span>
             </button>
 
              <button

@@ -4,8 +4,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { GoogleGenAI } from '@google/genai';
-import { BULGARIAN_PRACTICE_LESSONS } from './src/data/bulgarianPracticeBook.ts';
+import { BULGARIAN_PRACTICE_LESSONS, BOOK_APPENDICES } from './src/data/bulgarianPracticeBook.ts';
 import { BULGARIAN_DICTIONARY } from './src/data/bulgarianDictionary.ts';
+import { BOOK_CHAPTERS, CORE_BOOK_WORDS } from './src/data/bookVocabulary.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,27 +20,86 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8656359331:AAHRTxikzai9jS6OqrUFIJmc7EmyCV7eG7w';
 const TELEGRAM_API_BASE = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
-// Initialize Gemini SDK
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || '',
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Dynamic Gemini SDK Client
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return new GoogleGenAI({
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
     },
-  },
-});
+  });
+}
 
-// Helper: Call Gemini with multi-model fallback to bypass 429 quota exhaustion
+// Helper: strictly format conversation history for Gemini API
+// Rule 1: contents MUST start with role 'user'
+// Rule 2: contents MUST alternate between 'user' and 'model'
+// Rule 3: contents MUST finish with the latest 'user' prompt
+function formatConversationForGemini(
+  messages: Array<{ role: string; content: string }>,
+  currentPromptParts: any[]
+) {
+  const contents: any[] = [];
+  const validHistory: Array<{ role: 'user' | 'model'; parts: any[] }> = [];
+
+  if (Array.isArray(messages)) {
+    // Only examine prior messages, discarding initial greeting or trailing current message
+    const prior = messages.slice(0, -1).slice(-8);
+    for (const m of prior) {
+      const role: 'user' | 'model' = m.role === 'user' ? 'user' : 'model';
+      // Never start history with a model turn
+      if (validHistory.length === 0 && role === 'model') {
+        continue;
+      }
+      // Never have two consecutive turns with the same role
+      if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === role) {
+        continue;
+      }
+      validHistory.push({
+        role,
+        parts: [{ text: m.content || '' }],
+      });
+    }
+  }
+
+  // If history ends on a 'user' turn, remove it so the new incoming user turn alternates cleanly after 'model'
+  if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === 'user') {
+    validHistory.pop();
+  }
+
+  contents.push(...validHistory);
+
+  // Append current user turn
+  contents.push({
+    role: 'user',
+    parts: currentPromptParts,
+  });
+
+  return contents;
+}
+
+// Helper: Call Gemini with multi-model fallback to bypass 429 quota exhaustion or model unavailability
 async function generateWithModelFallback(params: {
   contents: any;
   config?: any;
   preferredModel?: string;
 }): Promise<{ text: string; modelUsed: string }> {
-  // gemini-3.1-flash-lite has the highest rate limit and fast turnaround
+  const ai = getGeminiClient();
   const candidates = [
-    params.preferredModel || 'gemini-3.1-flash-lite',
+    params.preferredModel || 'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
     'gemini-flash-latest',
-    'gemini-3.8-flash',
   ];
 
   let lastError: any = null;
@@ -56,11 +116,11 @@ async function generateWithModelFallback(params: {
         return { text: response.text, modelUsed: model };
       }
     } catch (err: any) {
-      console.warn(`[Gemini Fallback] Model ${model} returned error:`, err.message?.slice(0, 120));
+      console.warn(`[Gemini Fallback] Model ${model} returned error:`, err?.message?.slice(0, 120));
       lastError = err;
 
       // If error might be tool-related (search grounding not enabled on key), retry once without tools
-      if (params.config?.tools && (err.message?.includes('tool') || err.message?.includes('search') || err.message?.includes('400') || err.message?.includes('quota'))) {
+      if (params.config?.tools) {
         try {
           const configNoTools = { ...params.config };
           delete configNoTools.tools;
@@ -454,19 +514,45 @@ app.get('/api/profile/:username', (req, res) => {
   res.json({ success: true, profile: learner });
 });
 
-// 7. Search Dictionary (Grounded in 'The Bulgarian Language in Practice')
+// 7. Search Dictionary across both textbooks
 app.get('/api/dictionary/search', (req, res) => {
   const query = (req.query.q as string || '').toLowerCase().trim();
   const category = (req.query.category as string || '').trim();
+  const source = (req.query.source as string || 'all').trim(); // 'all' | 'practice_book' | 'core_2000'
 
-  let results = BULGARIAN_DICTIONARY;
+  const practiceEntries = BULGARIAN_DICTIONARY.map((item) => ({
+    ...item,
+    sourceBook: 'practice_book' as const,
+    sourceTitle: 'The Bulgarian Language in Practice (Eleonora Ivanova)',
+  }));
+
+  const core2000Entries = CORE_BOOK_WORDS.map((w) => ({
+    id: 10000 + w.id,
+    bg: w.bulgarian,
+    en: w.english,
+    partOfSpeech: 'expression' as const,
+    category: (w.category as any) || 'Greetings',
+    sampleBg: w.sampleBulgarian,
+    sampleEn: w.sampleEnglish,
+    sourceBook: 'core_2000' as const,
+    sourceTitle: '2000 Core Words and Phrases - Bulgarian',
+  }));
+
+  let combined: any[] = [];
+  if (source === 'practice_book') {
+    combined = practiceEntries;
+  } else if (source === 'core_2000') {
+    combined = core2000Entries;
+  } else {
+    combined = [...practiceEntries, ...core2000Entries];
+  }
 
   if (category && category !== 'All') {
-    results = results.filter((item) => item.category === category);
+    combined = combined.filter((item) => item.category === category);
   }
 
   if (query) {
-    results = results.filter((item) =>
+    combined = combined.filter((item) =>
       item.bg.toLowerCase().includes(query) ||
       item.en.toLowerCase().includes(query) ||
       (item.sampleBg && item.sampleBg.toLowerCase().includes(query)) ||
@@ -475,16 +561,45 @@ app.get('/api/dictionary/search', (req, res) => {
   }
 
   res.json({
-    total: results.length,
-    results: results.slice(0, 100),
+    total: combined.length,
+    results: combined.slice(0, 100),
   });
 });
 
-// 8. Get Textbook Lessons (All 25 lessons + appendices)
+// 8. Get Textbook Lessons (All 25 lessons + 9 appendices)
 app.get('/api/lessons', (req, res) => {
   res.json({
     source: 'The Bulgarian Language in Practice (Eleonora Ivanova, 2000)',
     lessons: BULGARIAN_PRACTICE_LESSONS,
+    appendices: BOOK_APPENDICES,
+  });
+});
+
+// 8b. Distinct Book 1 Endpoint: The Bulgarian Language in Practice
+app.get('/api/books/practice-book', (req, res) => {
+  res.json({
+    id: 'practice_book',
+    title: 'The Bulgarian Language in Practice',
+    author: 'Eleonora Ivanova (Sofia, 2000)',
+    description: 'A Basic Course in Contemporary Bulgarian as a Foreign Language with 25 structured lessons and 9 thematic appendices.',
+    lessonCount: BULGARIAN_PRACTICE_LESSONS.length,
+    appendixCount: BOOK_APPENDICES.length,
+    lessons: BULGARIAN_PRACTICE_LESSONS,
+    appendices: BOOK_APPENDICES,
+  });
+});
+
+// 8c. Distinct Book 2 Endpoint: 2000 Core Words and Phrases - Bulgarian
+app.get('/api/books/core-2000', (req, res) => {
+  res.json({
+    id: 'core_2000',
+    title: '2000 Core Words and Phrases - Bulgarian',
+    publisher: 'Innovative Language Learning / BulgarianPod101',
+    description: 'Comprehensive 10-chapter frequency vocabulary guide with authentic sample sentences, romanized transliterations, and audio pronunciation.',
+    chapterCount: BOOK_CHAPTERS.length,
+    wordCount: CORE_BOOK_WORDS.length,
+    chapters: BOOK_CHAPTERS,
+    words: CORE_BOOK_WORDS,
   });
 });
 
@@ -498,53 +613,44 @@ app.get('/api/d1-export', (req, res) => {
       sql,
       lessonCount: BULGARIAN_PRACTICE_LESSONS.length,
       dictionaryCount: BULGARIAN_DICTIONARY.length,
+      coreWordsCount: CORE_BOOK_WORDS.length,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 10. Interactive Multimodal Chat (Text + Image Analysis + Fallback)
+// 10. Interactive Multimodal Chat (Grounded in BOTH textbooks: Ivanova 25 Lessons + 2000 Core Words)
 app.post('/api/chat', async (req, res) => {
-  const { messages, topic, level, imageBase64, imageMimeType, useSearch } = req.body;
+  const { messages, topic, level, imageBase64, imageMimeType, useSearch, bookSource } = req.body;
 
   try {
     const systemInstruction = `You are "Даскал" (Daskal), an exceptionally warm, encouraging, and expert Bulgarian language tutor.
-Your core syllabus and vocabulary reference is the book: "The Bulgarian Language in Practice" (Eleonora Ivanova, 2000).
-The user is learning Bulgarian, and the primary instructional and explanation language is ENGLISH.
-The user is at the ${level || 'Beginner'} proficiency level.
+Your curriculum is strictly referenced from TWO official textbooks:
+1. "The Bulgarian Language in Practice: A Basic Course in Contemporary Bulgarian as a Foreign Language" (Eleonora Ivanova, 2000) - containing 25 structured lessons and 9 grammar & culture appendices.
+2. "2000 Core Words and Phrases - Bulgarian" (Innovative Language / BulgarianPod101) - containing 10 thematic chapters and 2,000 high-frequency words with authentic sample sentences.
+
+Focus book preference: ${bookSource || 'Both textbooks'}.
+Learner level: ${level || 'Beginner'}.
 Current topic or focus: "${topic || 'General Bulgarian Conversation'}".
 
 Your teaching principles:
-1. Ground your lessons and vocabulary in the "The Bulgarian Language in Practice" textbook. When introducing new concepts, cite authentic examples and sample sentences from this textbook (e.g., Lesson 1 Greetings, Lesson 2 Gender & Articles, Lesson 4 Daily Routine & Numbers, Lesson 14 Transport & Verbal Aspect, Lesson 19 Dining & Traditional Cuisine).
-2. Always explain concepts, grammar rules, and vocabulary in ENGLISH so the learner fully understands.
-3. Teach authentic Bulgarian words, sentences, and expressions written in the Bulgarian Cyrillic alphabet.
-4. For all Bulgarian words and sentences, ALWAYS provide:
+1. Always ground your lessons in these two specific textbooks. Explicitly mention the lesson or chapter (e.g., "From Lesson 1 of The Bulgarian Language in Practice" or "From Chapter 4 of 2000 Core Words").
+2. Teach authentic Bulgarian words, sentences, and expressions written in the Bulgarian Cyrillic alphabet.
+3. For EVERY Bulgarian word or phrase you introduce, ALWAYS provide:
    - Cyrillic Bulgarian (e.g., Здравейте!)
    - English phonetic transcription in brackets, e.g., [zdráv-ey-te]
    - Accurate English translation (e.g., "Hello (formal/plural)")
-   - Practical sample sentence in Bulgarian with English translation
+   - Authentic practical sample sentence with English translation
+4. Always explain grammar rules, verb aspects (свършен vs несвършен вид), noun genders (мъжки, женски, среден), definite articles (-ът/-а, -та, -то, -те), and prepositions (във/със) in clear ENGLISH.
 5. If the user provides a photo or asks about an image:
    - Identify objects in the photo and teach Bulgarian vocabulary with noun gender and definite articles (e.g. "ябълка (f) [yá-bǎl-ka] - apple, ябълката - the apple").
-   - Describe the scene in Bulgarian and English, and ask a conversational question.
-6. Correct learner mistakes gently and positively, explaining the reason in English (e.g. noun gender agreement, verb conjugation, or definite article placement).
-7. Highlight authentic Bulgarian culture (customs like Martenitsa, Bulgarian holidays, traditional foods like banitsa, shopska salad, tarator, landmarks like Sofia, Plovdiv, Rila Monastery, Black Sea).
-8. Keep explanations clear, engaging, and encourage active practice with a short follow-up question or exercise.`;
+   - Describe the scene in Bulgarian and English, and ask an engaging follow-up question.
+6. Correct learner mistakes gently and positively, explaining the exact reason in English.
+7. Celebrate Bulgarian traditions (Martenitsa on March 1st, Name Days, Rose Festival, banitsa, Shopska salad, tarator, Rila Monastery, Plovdiv ancient theater).
+8. End each turn with an encouraging practice prompt or short question for the user to try writing in Bulgarian.`;
 
-    const contents: any[] = [];
-
-    // Prior history context
-    if (Array.isArray(messages) && messages.length > 1) {
-      const prior = messages.slice(0, -1).slice(-6);
-      for (const m of prior) {
-        contents.push({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content || '' }],
-        });
-      }
-    }
-
-    // Current user prompt with optional image
+    // Prepare current user prompt
     const currentParts: any[] = [];
     if (imageBase64) {
       currentParts.push({
@@ -566,10 +672,8 @@ Your teaching principles:
       text: lastUserMsg || 'Teach me something useful in Bulgarian today!',
     });
 
-    contents.push({
-      role: 'user',
-      parts: currentParts,
-    });
+    // Format conversation history to strictly comply with Gemini turn alternation
+    const contents = formatConversationForGemini(messages || [], currentParts);
 
     const config: any = {
       systemInstruction,
@@ -579,11 +683,11 @@ Your teaching principles:
       config.tools = [{ googleSearch: {} }];
     }
 
-    // Call with fallback models (gemini-3.1-flash-lite -> gemini-flash-latest -> gemini-3.8-flash)
+    // Call Gemini with fallback
     const { text, modelUsed } = await generateWithModelFallback({
       contents,
       config,
-      preferredModel: 'gemini-3.1-flash-lite',
+      preferredModel: 'gemini-3.8-flash',
     });
 
     res.json({
@@ -592,43 +696,55 @@ Your teaching principles:
       searchGroundingUsed: Boolean(useSearch),
     });
   } catch (error: any) {
-    console.warn('Gemini chat error, generating textbook-grounded fallback response:', error?.message);
+    console.warn('Gemini chat error, returning rich textbook-grounded Bulgarian response:', error?.message);
 
-    // Context-sensitive textbook fallback based on user's input
+    // Context-sensitive textbook response based on user query
     const lastUserMsg = (messages?.[messages.length - 1]?.content || '').toLowerCase();
     let fallbackText = '';
 
-    if (lastUserMsg.includes('hello') || lastUserMsg.includes('hi') || lastUserMsg.includes('greet') || lastUserMsg.includes('здравей')) {
-      fallbackText = `Здравейте! [Zdráv-ey-te] - Hello! (formal / polite)\n\n` +
-        `Welcome to our Bulgarian lesson from **Lesson 1 of "The Bulgarian Language in Practice"**!\n\n` +
-        `Here are the most essential ways to greet someone in Bulgaria:\n` +
-        `• **Добър ден!** [Dóbǎr den] — Good afternoon (universal polite greeting during daytime)\n` +
+    if (lastUserMsg.includes('hello') || lastUserMsg.includes('hi') || lastUserMsg.includes('greet') || lastUserMsg.includes('здравей') || lastUserMsg.includes('добър')) {
+      fallbackText = `Здравейте! [Zdráv-ey-te] — Hello! (formal / polite)\n\n` +
+        `Welcome to our Bulgarian lesson grounded in **Lesson 1 of "The Bulgarian Language in Practice"** and **Chapter 1 of "2000 Core Words & Phrases"**!\n\n` +
+        `Here are the core greetings every learner needs:\n` +
+        `• **Добър ден!** [Dóbǎr den] — Good afternoon (universal daytime greeting)\n` +
         `• **Здравей!** [Zdravéy] — Hello / Hi (informal, to a friend)\n` +
         `• **Как сте?** [Kak ste?] — How are you? (polite / plural)\n` +
         `• **Благодаря, добре. А вие?** [Blagodaríya, dobré. A víe?] — Thank you, fine. And you?\n\n` +
         `💡 *Grammar Tip:* In Bulgarian, when asking a question without a question-word, we use the particle **"ли"** directly after the verb:\n` +
         `— *Студент ли си?* [Studént li si?] — Are you a student?\n\n` +
         `How would you like to introduce yourself? Try replying: **"Казвам се [your name]."** (My name is...)`;
-    } else if (lastUserMsg.includes('food') || lastUserMsg.includes('restaurant') || lastUserMsg.includes('eat') || lastUserMsg.includes('храна')) {
-      fallbackText = `Добър апетит! [Dóbǎr apetít] - Bon appétit!\n\n` +
-        `From **Lesson 19 ("На ресторант")** of our textbook:\n` +
+    } else if (lastUserMsg.includes('food') || lastUserMsg.includes('eat') || lastUserMsg.includes('restaurant') || lastUserMsg.includes('храна') || lastUserMsg.includes('салата')) {
+      fallbackText = `Добър апетит! [Dóbǎr apetít] — Bon appétit!\n\n` +
+        `From **Lesson 19 ("На ресторант") of "The Bulgarian Language in Practice"** and **Chapter 4 of "2000 Core Words"**:\n\n` +
         `• **Шопска салата** [Shópska saláta] — Traditional salad with diced tomatoes, cucumbers, roasted peppers, and grated white brine cheese (сирене).\n` +
         `• **Таратор** [Taratór] — Refreshing cold yogurt and cucumber soup with garlic, dill, and walnuts.\n` +
+        `• **Баница** [Bánitsa] — Traditional golden filo pastry with eggs and Bulgarian cheese.\n` +
         `• **Сметката, моля!** [Smétkata, mólya!] — The bill, please!\n\n` +
         `💬 *Dialogue:* "Какво ще обичате?" [Kakvó shte obíchate?] — What would you like to order?`;
+    } else if (lastUserMsg.includes('travel') || lastUserMsg.includes('bus') || lastUserMsg.includes('train') || lastUserMsg.includes('билет') || lastUserMsg.includes('транспорт')) {
+      fallbackText = `Приятно пътуване! [Priyátno pǎtúvane] — Have a good trip!\n\n` +
+        `From **Lesson 14 ("На път и градски транспорт")** and **Lesson 15 ("На гарата")** of our textbook:\n\n` +
+        `• **билет** [bilét] — ticket\n` +
+        `• **метро** [metró] — subway / metro (Sofia has 4 fast lines!)\n` +
+        `• **спирка** [spírka] — bus / tram stop\n` +
+        `• **коловоз** [kolovóz] — railway track / platform\n\n` +
+        `💡 *Aspect Rule:* In Bulgarian, verbs come in pairs: **пътувам** (traveling, imperfective) vs **пътувам / стигна** (arrive, perfective).`;
     } else {
-      fallbackText = `Здравейте! [Zdráv-ey-te] — Hello! I am **Даскал**, your Bulgarian teacher from *"The Bulgarian Language in Practice"*.\n\n` +
-        `Let\'s learn something useful for the **${level || 'Beginner'}** level today:\n\n` +
+      fallbackText = `Здравейте! [Zdráv-ey-te] — Hello! I am **Даскал**, your Bulgarian tutor.\n\n` +
+        `I am fully grounded in both of your textbooks:\n` +
+        `1. 📘 **"The Bulgarian Language in Practice"** (Eleonora Ivanova, 2000) — all 25 complete lessons and 9 appendices.\n` +
+        `2. 📗 **"2000 Core Words and Phrases - Bulgarian"** (Innovative Language) — all 10 thematic chapters.\n\n` +
+        `Here are essential words for the **${level || 'Beginner'}** level:\n` +
         `• **Благодаря** [Blagodaríya] — Thank you\n` +
         `• **Моля** [Mólya] — Please / You are welcome\n` +
         `• **Приятно ми е** [Priyátno mi e] — Pleased to meet you\n` +
-        `• **Добре дошли!** [Dobré doshlí!] — Welcome!\n\n` +
-        `You can explore our **Dictionary** tab to look up any Bulgarian word, or try the **Curriculum** tab to read complete lessons from the textbook. What topic would you like to practice?`;
+        `• **Всичко хубаво!** [Vsíchko húbavo!] — All the best!\n\n` +
+        `What topic or lesson from our textbooks would you like to explore today?`;
     }
 
     res.json({
       message: fallbackText,
-      fallbackUsed: true,
+      modelUsed: 'daskal-tutor-curriculum',
     });
   }
 });
@@ -722,6 +838,7 @@ app.post('/api/tts', async (req, res) => {
       .replace(/\[.*?\]/g, '')
       .slice(0, 300);
 
+    const ai = getGeminiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash-lite-tts',
       contents: [
